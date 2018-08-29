@@ -1,18 +1,22 @@
 rm(list=ls()) #install.packages("vioplot")
-library( plyr) 
+library(plyr)
 library(data.table)
 #main_path = '/Users/akm82/Box Sync/SON/Data'
-main_path = '/Users/akikomizuno//Box Sync/SON/Data'
+if(dir.exists('/Users/akikomizuno')){
+    main_path = '/Users/akikomizuno//Box Sync/SON/Data'
+}else{
+    main_path = '~/mycloud/repos/SC_task'
+}
 
 
 ##OutsideScan Data_______
 # add participant's IS
 outside <- read.csv(file.path(main_path, 'compiled_conframe_outsidescan.csv'))
-outside$Particpant_original <- outside$X
+outside$Participant_original <- outside$X
 outside <- cbind(ID = NA, outside)
-outside$ID <- substr(outside$Particpant_original, 1,8)
+outside$ID <- substr(outside$Participant_original, 1,8)
 colnames(outside)[11] <- "ConditionResponse"
-write.csv(outside, file.path(main_path, "outside.csv"))
+write.csv(outside, file.path(main_path, "outside.csv"), row.names = FALSE)
 
 #OutsideScan Data______________________________________________________________
 # Load the subject list
@@ -29,14 +33,28 @@ overall_fun = function(dt){
   return((npos - nneg)/(npos + nneg))
 }
 
+#' @description Select on facetype and apply overall_fun
 face_fun = function(dt, facetype){
   df <- dt[Condition==facetype,]
   return(overall_fun(df))
 }
 
+#' @description Compute reaction time of
+mean_RT_by_participant_and_condition = function(DT){
+    Z = DT[, c("Condition", "Participant", "ConditionRt")]
+    return(
+        DT[, .(mrt = mean(ConditionRt)),
+           by = c("Condition", "Participant")]
+    )
+}
+
+X = mean_RT_by_participant_and_condition(DT)
+
+
+
 RES = data.table(
   subject = names(DT_groups),
-  Overall = unlist(lapply(DT_groups, overall_fun)), 
+  Overall = unlist(lapply(DT_groups, overall_fun)),
   Fearful = unlist(lapply(DT_groups, face_fun, "negative")),
   Neutral = unlist(lapply(DT_groups, face_fun, "neutral")),
   Happy = unlist(lapply(DT_groups, face_fun, "positive"))
@@ -51,7 +69,7 @@ library(ggplot2)
 ggplot(RES.m, aes(x=variable, y=value,fill=variable) ) + geom_violin() +
   scale_fill_manual(values=group.colors) +
   geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(title="Outside Scan", x="Type of Trial", y="Response") +
   ylim(-1,1)
 
@@ -93,7 +111,7 @@ group.colors <- c("hotpink",  "royalblue")
 ggplot(RES2.m, aes(x=variable, y=value,fill=variable) ) + geom_violin() +
   scale_fill_manual(values=group.colors) +
   geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(title="Outside Scan", x="Type of Trial", y="Response") +
   ylim(0,1)
 
@@ -117,7 +135,7 @@ for(i in 1:nrow(inside)) {
     inside$med_type[i] <- "Placebo"
   } else if (grepl("Nal", inside$X[i])) {
     inside$med_type[i] <- "Naltrexone"
-  } 
+  }
 }
 write.csv(inside, file.path(main_path, "inside.csv"))
 ##---------------
@@ -162,7 +180,7 @@ face_fun = function(dt,  drug, cont_type, facetype, method = 'all'){
 
 RES = data.table(
   subject = names(DT_groups),
-  #Overall = unlist(lapply(DT_groups, overall_fun)), 
+  #Overall = unlist(lapply(DT_groups, overall_fun)),
   Nalt_Overall = unlist(lapply(DT_groups, face_fun,"Naltrexone",c("Pleasant","Unpleasant"),c("Happy", "Neutral","Fearful"), method = 'all')),
   Nalt_Unplea_Overall = unlist(lapply(DT_groups, face_fun,"Naltrexone","Unpleasant",c("Happy", "Neutral","Fearful"), method = 'all')),
   Nalt_Plea_Overall = unlist(lapply(DT_groups, face_fun,"Naltrexone","Pleasant",c("Happy", "Neutral","Fearful"), method = 'all')),
@@ -183,16 +201,16 @@ RES = data.table(
   Plac_Plea_Happy = unlist(lapply(DT_groups, face_fun,"Placebo","Pleasant","Happy",method = 'all'))#method = 'PosAcc'
 )
 
-vioplot(na.omit(RES$Nalt_Overall),na.omit(RES$Nalt_Unplea_Overall),na.omit(RES$Nalt_Plea_Overall),  
-        na.omit(RES$Nalt_Unplea_Fearful),na.omit(RES$Nalt_Plea_Fearful), 
-        na.omit(RES$Nalt_Unplea_Neutral),na.omit(RES$Nalt_Plea_Neutral), 
+vioplot(na.omit(RES$Nalt_Overall),na.omit(RES$Nalt_Unplea_Overall),na.omit(RES$Nalt_Plea_Overall),
+        na.omit(RES$Nalt_Unplea_Fearful),na.omit(RES$Nalt_Plea_Fearful),
+        na.omit(RES$Nalt_Unplea_Neutral),na.omit(RES$Nalt_Plea_Neutral),
         na.omit(RES$Nalt_Unplea_Happy), na.omit(RES$Nalt_Plea_Happy),ylim=c(-1,1))
         #         names=c("All Faces", "Neutral", "Happy", "Fearful"),ylim=c(-1,1))
 
 
-vioplot(na.omit(RES$Plac_Overall),na.omit(RES$Plac_Unplea_Overall),na.omit(RES$Plac_Plea_Overall), 
-        na.omit(RES$Plac_Unplea_Fearful),na.omit(RES$Plac_Plea_Fearful), 
-        na.omit(RES$Plac_Unplea_Neutral),na.omit(RES$Plac_Plea_Neutral), 
+vioplot(na.omit(RES$Plac_Overall),na.omit(RES$Plac_Unplea_Overall),na.omit(RES$Plac_Plea_Overall),
+        na.omit(RES$Plac_Unplea_Fearful),na.omit(RES$Plac_Plea_Fearful),
+        na.omit(RES$Plac_Unplea_Neutral),na.omit(RES$Plac_Plea_Neutral),
         na.omit(RES$Plac_Unplea_Happy), na.omit(RES$Plac_Plea_Happy),ylim=c(-1,1))
 
 RES_Nalt <- RES[, 1:10]
@@ -212,7 +230,7 @@ ggplot(RES_Plac.m)
 
 , aes(x=variable, y=value,fill=variable) ) + geom_violin() +
   scale_fill_manual(values=group.colors) + geom_boxplot(width=0.2) +
-  facet_wrap(~ Exp)+theme(legend.position="none") + 
+  facet_wrap(~ Exp)+theme(legend.position="none") +
   labs(x="Type of Trial", y="Accuracy") +ylim(0,1)
 
 
@@ -223,7 +241,7 @@ ggplot(RES_Plac.m)
 group.colors <- c("hotpink", "pink", "lightblue","royalblue")
 ggplot(RES_Nalt, aes(x=variable, y=value,fill=variable) ) + geom_violin() +
   scale_fill_manual(values=group.colors) + geom_boxplot(width=0.2) +
-  facet_wrap(~ Exp)+theme(legend.position="none") + 
+  facet_wrap(~ Exp)+theme(legend.position="none") +
   labs(x="Type of Trial", y="Accuracy") +ylim(0,1)
 
 ggplot(RES_Nalt)
@@ -272,12 +290,12 @@ compu_fun = function(drug){
       stop("Invalid method")
     }
   }
-  
+
   face_fun = function(dt, cont_type, facetype, method = 'all'){
     dt <- dt[(Context==cont_type)&(is.element(Emotion, facetype)),]
     return(overall_fun(dt, method))
   }
-  
+
   RES = data.table(
     subject = names(DT_groups),
     Plea_Happy = unlist(lapply(DT_groups, face_fun,"Pleasant","Happy",method = 'PosAcc')),
@@ -286,7 +304,7 @@ compu_fun = function(drug){
     Unplea_Fearful = unlist(lapply(DT_groups, face_fun,"Unpleasant","Fearful",method = 'NegAcc'))
   )
   return(RES)
-} 
+}
 
 RES_Plac <- compu_fun("Plac")
 RES_Nalt <- compu_fun("Nalt")
@@ -301,7 +319,7 @@ RES_all <- rbind(RES_Plac.m, RES_Nalt.m)
 group.colors <- c("hotpink", "pink", "lightblue","royalblue")
 ggplot(RES_all, aes(x=variable, y=value,fill=variable) ) + geom_violin() +
   scale_fill_manual(values=group.colors) + geom_boxplot(width=0.2) +
-  facet_wrap(~ Exp)+theme(legend.position="none") + 
+  facet_wrap(~ Exp)+theme(legend.position="none") +
   labs(x="Type of Trial", y="Accuracy") +ylim(0,1)
 
 
@@ -337,12 +355,12 @@ subjDataList = lapply(subjlist, function(x){
 })
 DT = data.table::rbindlist(subjDataList)
 DT = DT[FaceResponseText != 'NaN',]
-          ### Check missing data 
+          ### Check missing data
           DT_missing <- DT[FaceResponseText == 'NaN'] #-- 38
           DT_missing_groups = split(DT_missing, as.factor(DT_missing$Participant))
           unlist(lapply(DT_missing_groups, function(x) nrow(x)))
           #unique(DT_missing$Run) # --3 4 5 2
-          
+
           # Check inconsistency
           nrow(DT[DT$FaceResponseNum==2 & DT$FaceResponseText=="Negative"])#correct -- 450
           nrow(DT[DT$FaceResponseNum==2 & DT$FaceResponseText=="Positive"])         -- 342
@@ -364,7 +382,7 @@ face_fun = function(dt, cont_type, facetype){
 
 RES_Plac = data.table(
   subject = names(DT_groups),
-  Overall = unlist(lapply(DT_groups, overall_fun)), 
+  Overall = unlist(lapply(DT_groups, overall_fun)),
   Plea_Overall = unlist(lapply(DT_groups, face_fun,"Pleasant",c("Happy", "Neutral","Fearful"))),
   Unplea_Overall = unlist(lapply(DT_groups, face_fun,"Unpleasant",c("Happy", "Neutral","Fearful"))),
   Plea_Neutral = unlist(lapply(DT_groups, face_fun,"Pleasant", "Neutral")),
@@ -381,12 +399,12 @@ RES_Plac.m <- reshape2::melt(RES_Plac, id.vars="subject")
 #rename -- run Nalt first, then Plac
 RES_Nalt.m <- RES_Plac.m
 group.colors <- c(Overall = "limegreen", Plea_Overall = "pink", Unplea_Overall ="pink",
-                  Plea_Neutral = "lightblue", Unplea_Neutral = "lightblue", Plea_Happy = "hotpink", 
+                  Plea_Neutral = "lightblue", Unplea_Neutral = "lightblue", Plea_Happy = "hotpink",
                   Unplea_Happy = "hotpink", Plea_Fear ="royalblue", Unplea_Fear = "royalblue")
 library(ggplot2)
 ggplot(RES_Plac.m, aes(x=variable, y=value,fill=variable) ) + geom_violin() +
   scale_fill_manual(values=group.colors) + geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(title=drug, x="Type of Trial", y="Response") +
   ylim(-1,1)
 ##_________________________
@@ -414,17 +432,17 @@ data_HappyFear$Cong[grep("Plea_Fear|Unplea_Happy", data_HappyFear$variable)] <- 
 data_HappyFear$ConFaExp <- paste(data_HappyFear$variable,data_HappyFear$Exp,sep = "")
 data_HappyFear$FaceCong <- paste(data_HappyFear$Face,data_HappyFear$Cong,sep = "")
   #Context x Face x Drug
-group.colors2 <- c(Plea_Happy = "hotpink", Unplea_Happy = "hotpink", 
+group.colors2 <- c(Plea_Happy = "hotpink", Unplea_Happy = "hotpink",
                    Plea_Fear ="royalblue", Unplea_Fear = "royalblue")
-ggplot(data_HappyFear, aes(x=variable, y=value, fill=variable) ) + geom_violin() + 
+ggplot(data_HappyFear, aes(x=variable, y=value, fill=variable) ) + geom_violin() +
   facet_wrap(~ Exp) + scale_fill_manual(values=group.colors2) + geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(x="Type of Trial", y="Response") +
   ylim(-1,1)
   #Congruency x Face x Drug
-ggplot(data_HappyFear, aes(x=FaceCong, y=value, fill=variable) ) + geom_violin() + 
+ggplot(data_HappyFear, aes(x=FaceCong, y=value, fill=variable) ) + geom_violin() +
   facet_wrap(~ Exp) + scale_fill_manual(values=group.colors2) + geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(x="Type of Trial", y="Response") +
   ylim(-1,1)
 
@@ -446,11 +464,11 @@ fit <- lm(value ~ Context+Exp+Context*Exp,data=data_Happy)
 fit <- lm(value ~ Context,data=data_Happy)
 anova(fit)
 summary(fit)
-group.colors3 <- c(Plea_HappyPlac = "hotpink", Unplea_HappyPlac = "hotpink", 
+group.colors3 <- c(Plea_HappyPlac = "hotpink", Unplea_HappyPlac = "hotpink",
                    Plea_HappyNalt = "pink", Unplea_HappyNalt = "pink")
-ggplot(data_Happy, aes(x=variable, y=value, fill=ConFaExp) ) + geom_violin() + 
+ggplot(data_Happy, aes(x=variable, y=value, fill=ConFaExp) ) + geom_violin() +
   facet_wrap(~ Exp) + scale_fill_manual(values=group.colors3) + geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(x="Type of Trial", y="Response") +
   ylim(-1,1)
 
@@ -460,11 +478,11 @@ fit <- lm(value ~ Context+Exp+Context*Exp,data=data_Fear)
 fit <- lm(value ~ Exp,data=data_Fear)
 anova(fit)
 summary(fit)
-group.colors4 <- c(Plea_FearPlac = "royalblue", Unplea_FearPlac = "royalblue", 
+group.colors4 <- c(Plea_FearPlac = "royalblue", Unplea_FearPlac = "royalblue",
                    Plea_FearNalt = "lightblue", Unplea_FearNalt = "lightblue")
-ggplot(data_Fear, aes(x=variable, y=value, fill=ConFaExp) ) + geom_violin() + 
+ggplot(data_Fear, aes(x=variable, y=value, fill=ConFaExp) ) + geom_violin() +
   facet_wrap(~ Exp) + scale_fill_manual(values=group.colors4) + geom_boxplot(width=0.2) +
-  theme(legend.position="none") + 
+  theme(legend.position="none") +
   labs(x="Type of Trial", y="Response") +
   ylim(-1,1)
 
@@ -481,7 +499,7 @@ data_HappyFear
 
 
 #ANOVA
-placeboInput <- setNames(data.frame(matrix(ncol = 4, nrow = 66)), 
+placeboInput <- setNames(data.frame(matrix(ncol = 4, nrow = 66)),
                           c("ID","Context", "Face", "Score"))
 sub <- as.numeric(subjlist_place[,1])
 placeboInput$ID <- rep(sub, each=6)
@@ -491,7 +509,7 @@ placeboAllTrim <- placeboAll[,4:9]
 placeboAllOrder <- placeboAllTrim[,c(1,3,6,2,4,5)]
 #install.packages("dplyr")
 library("dplyr")
-placeboAllReorder <- reshape(placeboAllOrder, direction = "long", 
+placeboAllReorder <- reshape(placeboAllOrder, direction = "long",
         varying = list(names(placeboAllOrder)[1:6]), idvar="ID")
 placeboAllReorder <- arrange(placeboAllReorder,placeboAllReorder$ID)
 placeboInput$Score <- placeboAllReorder$Plea_NeutFace
@@ -528,7 +546,7 @@ mod_NoNeut <- lm(Score ~ Prim + Face + Prim*Face,data=placeboInput_NoNeut)
 anova(mod_NoNeut)
 summary(mod_NoNeut)
 vioplot(placeboAll[,6],placeboAll[,7],placeboAll[,8],placeboAll[,9],
-        names=c("Congru_PleaHappy", "Incongru_UnpleaHappy", 
+        names=c("Congru_PleaHappy", "Incongru_UnpleaHappy",
                 "Congru_UnpleaFear", "Incongru_PleaFear"),ylim=c(-1,1))
 
 mod_NoNeut2 <- aov(Score ~ Face + Prim + Face:Prim ,data=placeboInput_NoNeut)
